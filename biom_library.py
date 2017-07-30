@@ -7,6 +7,8 @@
 import numpy as np
 import pandas as pd
 
+from collections import OrderedDict
+
 def joinTables(list_of_tables):
     '''
     INPUT
@@ -17,7 +19,7 @@ def joinTables(list_of_tables):
     	T1_D789 = JoinTables([M[1][df][1] for df in [7,8,9]])
     '''
 
-    new_table = pd.concat(list_of_tables,axis=0,join='outer').fillna(0)
+    new_table = pd.concat(list_of_tables,axis=0,join='inner').fillna(0)
     
     return new_table 
 
@@ -106,49 +108,89 @@ def pcoa_figure(pcoa,ax,pcs,title,mapping,classes):
     [tick.label.set_fontsize(14) for tick in ax.xaxis.get_major_ticks()];
     [tick.label.set_fontsize(14) for tick in ax.yaxis.get_major_ticks()];
 
-def phyloSummaryOtuTableSingle(df_parse,otu_taxonomy_map):
+def phyloSummaryOtuTable(df_parse,otu_taxa_dict,levels=None):
     '''
-    author: Firas Said Midani
-    e-mail: firas.midani@duke.edu
-    c-date: 2016.12.26    
-    
     DESCRIPTION
-    summary of OTU table based on desired level of phylogenetic binning
-    
+    	summary of OTU table based on desired level of phylogenetic binning
     INPUT
-    (1) an OTU table (df_parse)
-    (2) an otu id to taxonomy mapping (otu_taxonomy_map)
-    (2) and a desired metric (min, max, mean, and median)
+    	(1) an OTU table (df_parse)
+    	(2) an otu id to phylogeneic mapping (phylum to species)
+    	(3) levels of interest, e.g. ['p','g'] for analysis at phylum and genus levels only
         
     OUTPUT
     a dictionary of taxonomy level-specific tables (p,c,o,f,g,s) where 
-    each table is clades x the number of unique OTUs and their relative abundances
+    each table is clades x the number of unique OTUs and their relative abundances summary statistics
     '''
-    df_summary_dict = {};
-    
-    for level,desc in zip(['p','c','o','f','g','s'],
-                      ['Phylum','Class','Order','Family','Genus','Species']):
+    df_summary_dict = OrderedDict();
 
-        df_summary = pd.DataFrame([],index=otu_taxonomy_map.loc[df_parse.keys()].loc[:,level].unique(),
-                                 columns=['Num. OTUs','Rel. Abundance'])
+    if type(levels)==list:
+    	levels_to_summarize = levels
+    elif type(levels)==str:
+    	levels_to_summarize = [levels]
+    else:
+    	levels_to_summarize = ['p','c','o','f','g','s']
 
-        for ll in otu_taxonomy_map.loc[df_parse.keys()].loc[:,level].unique():
-            children = otu_taxonomy_map[otu_taxonomy_map.isin({level:[ll]}).any(1)].index
+    for level in levels_to_summarize:
+
+        if isinstance(df_parse,pd.Series):
+                df_summary = pd.DataFrame([],index=otu_taxa_dict.loc[df_parse.keys()].loc[:,level].unique(),
+                                 columns=['Number of OTUs','Relative abundance'])
+        else:
+                df_summary = pd.DataFrame([],index=otu_taxa_dict.loc[df_parse.keys()].loc[:,level].unique(),
+                                 columns=['Number of OTUs','mean','median','count','min','max'])
+
+        for ll in otu_taxa_dict.loc[df_parse.keys()].loc[:,level].unique():
+            children = otu_taxa_dict[otu_taxa_dict.isin({level:[ll]}).any(1)].index
             children = set(children).intersection(set(df_parse.keys()))
             num_otus = len(children)
-            df_summary.loc[ll,:] = [num_otus, df_parse.loc[:,list(children)].sum(1)[0]]
+            if isinstance(df_parse,pd.Series):
+            	df = df_parse.loc[list(children)];
+            	df_summary.loc[ll,'Number of OTUs'] = num_otus;
+            	df_summary.loc[ll,'Relative abundance'] = df.sum();
+            else:
+            	df = df_parse.loc[:,list(children)].sum(1)
+            	summ_df = [df.mean(0),
+                   		   df[df>0].median(0),
+                   	       (df>0).sum(0),
+                   		   df[df>0].min(0),
+                   		   df[df>=0].max(0)];
+            	df_summary.loc[ll,:] = [num_otus]+summ_df;
+            	
 
         #print dd,tt,df_summary.shape
-        df_summary_dict[level] = df_summary.sort(['Rel. Abundance'],ascending=False)
-        
+        if isinstance(df_parse,pd.Series):
+        	df_summary_dict[level] = df_summary.sort_values(['Relative abundance'],ascending=False)
+        else:
+        	df_summary_dict[level] = df_summary.sort_values(['median'],ascending=False)
+
+
     return df_summary_dict
+
+def read_biom(filename):
+	'''
+	INPUT 
+		filename
+	OUTPUT
+		otu_table: pandas.DataFrame of samples by OTUs
+		otu_taxa_map: pandas.DataFrame with index of "#OTU ID"s and "taxonomy" column
+	EXAMPLE
+		otu_table,otu_taxa_map = read_biom('./tables/otus_table.filtered.from_biom.txt')
+	'''
+	biom = pd.read_csv(filename,sep='\t',header=0,index_col=0,skiprows=1);
+	otu_taxa_map = pd.DataFrame(biom.iloc[:,-1]);
+	otu_table = biom.iloc[:,:-1];
+
+	return otu_table,otu_taxa_map
 
 def read_pcoa_file(filename):
 	'''
 	INPUT EXAMPLE
-
-	"./pc/pcoa_binary_jaccard_otus_table.filtered.txt"
-
+		"./pc/pcoa_binary_jaccard_otus_table.filtered.txt"
+	OUTPUT
+		a dictionary with three keys
+			eigen_vectors is a dictionary where keys are samples and values are lists corresponding to the coordinates of a sample on a principal comopnents (ordered first to last)
+			eigen_values is a list of the eigen values of the principal components (from first to last)
+			var_explained is a list of the cumulative variances explained by principal components (from first through last)
 	'''
 
 	fid = open(filename,'r')
@@ -236,7 +278,7 @@ def subsetTableBySampleIDs(otu_df,sample_ids):
 	'''
 	INPUT
 		otu_df : pandas.DataFrame of samples x OTUs
-		sample)ds : list of sample IDs
+		sample_ids : list of sample IDs
 	OTUPUT
 		otu_df : pandas.DataFrame which is the whole or subset of otu_df based on sample ids selected
 
@@ -272,3 +314,27 @@ def summarizeTable(df,otu_taxa_dict):
 	summ_df = summ_df.join(otu_taxa_dict);
 	summ_df = summ_df.loc[:,['mean','median','count','min','max','p','c','o','f','g','s']];
 	return summ_df
+
+def tss_norm(otu_table,axis=1):
+
+    '''
+    INPUT
+        otu_table: pandas.DataFramE
+        axis: either 0 or 1. 0 assumes that that otu_table is formatted by samples x otus and therefore sums across each row. 
+    OUTPUT
+        otu_table: pandas.DataFrame where rows (or columns) sum to one. 
+    EXAMPLE
+        normalized_otu_table = tss_norm(otu_table,1)
+    NOTES
+        tss stands for Total Sum Scaling
+    '''
+
+    # sum across each row
+    if axis==1:
+        new_table = otu_table.T / otu_table.sum(1);
+    # sum across each column
+    elif axis==0:
+        new_table = otu_table / otu_table.sum(0);
+    else: 
+        return 'ERROR: axis can only be 0 or 1.'
+    return new_table.T
