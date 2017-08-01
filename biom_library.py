@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 from collections import OrderedDict
 
-def alphaBoxPlot(values,xlabels,ylabel,ax=None):
+def alphaBoxPlot(values,xlabels,ylabel,scatter=False,ax=None):
     '''
     INPUT EXAMPLES
     # classes = ['INOC','FS0','FS1']
@@ -21,18 +21,30 @@ def alphaBoxPlot(values,xlabels,ylabel,ax=None):
     if not ax:
         fig, ax = plt.subplots(figsize=[5,5]);
 
-    bp =ax.boxplot(values,positions=np.arange(len(values)),patch_artist=True);
+    bp = ax.boxplot(values,positions=np.arange(len(values)),patch_artist=True);
 
+    # modify box aesthetics
     [ii.set(edgecolor='black',facecolor=(1,1,1,0.),lw=2) for ii in bp['boxes']]
     [ii.set(color='black',lw=2) for ii in bp['medians']]
     [ii.set(color='black',lw=2) for ii in bp['whiskers']]
     [ii.set(color='black',lw=2) for ii in bp['caps']]
 
+    # set labels
     [ii.set(fontsize=20,fontweight='normal') for ii in ax.get_xticklabels()+ax.get_yticklabels()]
     plt.setp(ax,xticks=ax.get_xticks(),xticklabels=xlabels)
-
     ax.set_ylabel(ylabel,fontsize=20,fontweight='normal')
-    
+
+    # modify axes
+    ax.set_ylim([0,ax.get_ylim()[1]])
+
+    if scatter:
+
+        pos = np.arange(len(values));
+
+        for ii,y_values in enumerate(values): 
+            x_values = np.random.normal(pos[ii],0.05,len(y_values));
+            ax.scatter(x_values,y_values,s=30,color=(0,0,0,0.4))
+
     return ax
 
 def filterTable(otu_table,min_reads=500):
