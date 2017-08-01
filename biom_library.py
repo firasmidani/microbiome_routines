@@ -9,6 +9,21 @@ import pandas as pd
 
 from collections import OrderedDict
 
+def filterTable(otu_table,min_reads=500):
+    '''
+    INPUT
+        otu_table: pandas.DataFrams, samples by rows
+    OUTPUT
+        otu_table filtered for samples with at least a defined set of reads
+    '''
+
+    count = pd.DataFrame(otu_table.sum(1), columns=['sum'])
+    count_high = count[count.loc[:,'sum']>500];
+    otu_table = otu_table.loc[count_high.index,:]
+
+    return otu_table
+    
+
 def joinTables(list_of_tables):
     '''
     INPUT
