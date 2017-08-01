@@ -280,7 +280,8 @@ def subsetTableByMetadata(otu_df,mapping_df,options_dict):
 	'''
 
 	microcosms = mapping_df[mapping_df.isin(options_dict).sum(1)==len(options_dict)]
-	microcosms_otu_df = otu_df.loc[[str(ii) for ii in microcosms.index],:]
+        microcosms_index = list(set(microcosms.index).intersection(set(otu_df.index)));
+	microcosms_otu_df = otu_df.loc[[str(ii) for ii in microcosms_index],:]
 
 	# below removes OTUs with zero counts
 	todrop = microcosms_otu_df.columns[np.where(microcosms_otu_df.sum()==0)[0]]
