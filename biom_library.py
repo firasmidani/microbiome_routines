@@ -178,7 +178,7 @@ def read_biom(filename):
 	'''
 	biom = pd.read_csv(filename,sep='\t',header=0,index_col=0,skiprows=1);
 	otu_taxa_map = pd.DataFrame(biom.iloc[:,-1]);
-	otu_table = biom.iloc[:,:-1];
+	otu_table = biom.iloc[:,:-1].T;
 
 	return otu_table,otu_taxa_map
 
