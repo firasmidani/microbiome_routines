@@ -265,6 +265,19 @@ def read_pcoa_file(filename):
 
 	return pcoa_dict
 
+def subsetMappingByMetadata(mapping_df,options_dict):
+        '''
+        INPUT
+            mapping_df: pandas.DataFrame with mapping of attributes in "options_dict"
+            options_dict: dictionary where keys are columns in mapping_df and values are lists of column values of interest
+        OUTPUT
+            mapping_Df: pandas.DataFrame which is the whole or subset of mapping_df based on criteria determined in "options_dict"
+        '''
+ 
+	mapping_df = mapping_df[mapping_df.isin(options_dict).sum(1)==len(options_dict)];
+        return mapping_df
+
+
 def subsetTableByMetadata(otu_df,mapping_df,options_dict):
 	
 	'''
