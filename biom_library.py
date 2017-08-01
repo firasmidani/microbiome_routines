@@ -6,8 +6,34 @@
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from collections import OrderedDict
+
+def alphaBoxPlot(values,xlabels,ylabel,ax=None):
+    '''
+    INPUT EXAMPLES
+    # classes = ['INOC','FS0','FS1']
+    # xlabels = ['Source\nStool','Cultured\nslurry','Cultured\ndilution']
+    # ylabel = 'Shannon index'
+    '''
+
+    if not ax:
+        fig, ax = plt.subplots(figsize=[5,5]);
+
+    bp =ax.boxplot(values,positions=np.arange(len(values)),patch_artist=True);
+
+    [ii.set(edgecolor='black',facecolor=(1,1,1,0.),lw=2) for ii in bp['boxes']]
+    [ii.set(color='black',lw=2) for ii in bp['medians']]
+    [ii.set(color='black',lw=2) for ii in bp['whiskers']]
+    [ii.set(color='black',lw=2) for ii in bp['caps']]
+
+    [ii.set(fontsize=20,fontweight='normal') for ii in ax.get_xticklabels()+ax.get_yticklabels()]
+    plt.setp(ax,xticks=ax.get_xticks(),xticklabels=xlabels)
+
+    ax.set_ylabel(ylabel,fontsize=20,fontweight='normal')
+    
+    return ax
 
 def filterTable(otu_table,min_reads=500):
     '''
